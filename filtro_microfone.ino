@@ -1,6 +1,6 @@
 /*
  * ============================================================
- * Detetor Acústico Robusto (Filtros Cascata + Envelope de Energia)
+ * Detetor Acústico (Apenas Rota de Voz / Inteligibilidade)
  * Projeto: Localizador Acústico de Vítimas
  * ============================================================
  */
@@ -18,24 +18,22 @@
 // ============================================================
 // Constantes dos Filtros (16000 Hz)
 // ============================================================
-const float ALPHA_300 = 0.11f;   // Corta < 300 Hz
+const float ALPHA_300 = 0.11f;   // Usado matematicamente para cortar < 300 Hz
 const float ALPHA_3000 = 0.54f;  // Corta > 3000 Hz
 
-// Memórias Rota 1 (Maquinário - Graves) - Cascata 2x
+// Memórias do Filtro (Isolador de Graves - Invisível)
 float grave1_lastY = 0.0f;
 float grave2_lastY = 0.0f;
 
-// Memórias Rota 2 (Voz) - Cascata Passa-Baixa 2x
+// Memórias da Rota de Voz (Passa-Baixa duplo)
 float voz_lp1_lastY = 0.0f;
 float voz_lp2_lastY = 0.0f;
 
-// Envelopes de Suavização (Para ignorar estalos rápidos)
-float envelopeGrave = 0.0f;
+// Envelope de Suavização (Ignora estalos rápidos)
 float envelopeVoz = 0.0f;
-const float ALPHA_ENVELOPE = 0.05f; // Quanto menor, mais ignora estalos
+const float ALPHA_ENVELOPE = 0.05f; 
 
-// *** LIMIARES DE DETEÇÃO ***
-const int32_t LIMIAR_MAQUINA = 2500; 
+// *** LIMIAR DE DETEÇÃO DA VOZ ***
 const int32_t LIMIAR_VOZ = 1200;     
 
 int32_t samplesBuffer[BUFFER_LEN];
@@ -80,14 +78,13 @@ void loop() {
   
   if (samplesRead == 0) return;
 
-  int32_t maxGrave = INT32_MIN, minGrave = INT32_MAX;
   int32_t maxVoz = INT32_MIN, minVoz = INT32_MAX;
 
   for (int i = 0; i < samplesRead; i++) {
     float x = (float)(samplesBuffer[i] >> 16); 
 
     // ---------------------------------------------------------
-    // ROTA 1: MAQUINÁRIO (GRAVES) - Passa-Baixa Agressivo
+    // ROTA INVISÍVEL: Calcula os graves para poder subtraí-los
     // ---------------------------------------------------------
     float y_grave1 = (ALPHA_300 * x) + ((1.0f - ALPHA_300) * grave1_lastY);
     grave1_lastY = y_grave1;
@@ -95,17 +92,11 @@ void loop() {
     float y_grave2 = (ALPHA_300 * y_grave1) + ((1.0f - ALPHA_300) * grave2_lastY);
     grave2_lastY = y_grave2;
 
-    int32_t sample_grave = (int32_t)y_grave2;
-    if (sample_grave > maxGrave) maxGrave = sample_grave;
-    if (sample_grave < minGrave) minGrave = sample_grave;
-
     // ---------------------------------------------------------
-    // ROTA 2: VOZ INTELIGÍVEL (MÉDIOS) - Tira os Graves e Limpa Agudos
+    // ROTA ATIVA: VOZ INTELIGÍVEL (300Hz a 3000Hz)
     // ---------------------------------------------------------
-    // Extrai apenas as frequências acima dos graves
     float y_sem_graves = x - y_grave2; 
     
-    // Passa-Baixa duplo para remover ruído agudo de chiado (Cascata)
     float y_voz_lp1 = (ALPHA_3000 * y_sem_graves) + ((1.0f - ALPHA_3000) * voz_lp1_lastY);
     voz_lp1_lastY = y_voz_lp1;
 
@@ -118,35 +109,24 @@ void loop() {
   }
 
   // Calcula o volume físico do pacote
-  float volumeGraveBruto = maxGrave - minGrave;
   float volumeVozBruto = maxVoz - minVoz;
 
-  // ---------------------------------------------------------
-  // MÁGICA 3: Envelope de Energia (Impede que "Estalos" funcionem)
-  // ---------------------------------------------------------
-  envelopeGrave = (ALPHA_ENVELOPE * volumeGraveBruto) + ((1.0f - ALPHA_ENVELOPE) * envelopeGrave);
+  // Envelope de Energia (Suavização)
   envelopeVoz = (ALPHA_ENVELOPE * volumeVozBruto) + ((1.0f - ALPHA_ENVELOPE) * envelopeVoz);
 
   // ---------------------------------------------------------
-  // SISTEMA DE ALARME DAS LINHAS
+  // SISTEMA DE ALARME DA LINHA
   // ---------------------------------------------------------
-  int32_t linhaAlarmeMaquinario = 0;
   int32_t linhaAlarmeVoz = 0;
 
-  if (envelopeGrave > LIMIAR_MAQUINA) {
-    linhaAlarmeMaquinario = 5000; 
-  }
   if (envelopeVoz > LIMIAR_VOZ) {
-    linhaAlarmeVoz = 5000; 
+    linhaAlarmeVoz = 5000; // Levanta a linha no gráfico
   }
 
-  // Plotagem final
+  // Plotagem final: apenas a base zero e o alarme de voz
   Serial.print("Base(Zero):0,");
-  Serial.print("Deteccao_Maquinario:");
-  Serial.print(linhaAlarmeMaquinario);
-  Serial.print(",");
   Serial.print("Deteccao_Voz:");
-  Serial.println(linhaAlarmeVoz + 6000); // Somado para não sobrepor visualmente
+  Serial.println(linhaAlarmeVoz);
 
   delay(15); 
 }
