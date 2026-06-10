@@ -245,7 +245,7 @@ void setup() {
 
   imprimirEstadoInicial();
   entrarModoAcustico();
-  displayRenderizar(estadoAtual, modoAtual, 0);
+  displayRenderizar(estadoAtual, modoAtual, 0, (uint8_t)(lerSensibilidadePotenciometro() * 100.0f));
 }
 
 // ============================================================
@@ -260,7 +260,8 @@ void loop() {
 
   if (agora - ultimoRefreshDisplay >= INTERVALO_DISPLAY_MS) {
     ultimoRefreshDisplay = agora;
-    displayRenderizar(estadoAtual, modoAtual, nivelSinalAtual, vozDetectada, gravacaoIniciada ? (gravacaoPausada ? GRAVACAO_PAUSADA : GRAVACAO_GRAVANDO) : GRAVACAO_PARADA);
+    uint8_t sensibilidadePers = (uint8_t)(lerSensibilidadePotenciometro() * 100.0f);
+    displayRenderizar(estadoAtual, modoAtual, nivelSinalAtual, vozDetectada, gravacaoIniciada ? (gravacaoPausada ? GRAVACAO_PAUSADA : GRAVACAO_GRAVANDO) : GRAVACAO_PARADA, sensibilidadePers);
   }
 
   delay(10);

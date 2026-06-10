@@ -14,18 +14,20 @@ bool displayIniciar();
 void displayRenderizar(
   EstadoSistema estado,
   ModoOperacao modo,
-  uint8_t nivelSinal
+  uint8_t nivelSinal,
+  uint8_t sensibilidade
 );
 
 
 
-// NOVA Versão completa (5 argumentos)
+// NOVA Versão completa (6 argumentos)
 void displayRenderizar(
   EstadoSistema estado,
   ModoOperacao modo,
   uint8_t nivelSinal,
   bool possivelVitimaDetectada,
-  EstadoGravacao estadoGravacao
+  EstadoGravacao estadoGravacao,
+  uint8_t sensibilidade
 );
 
 bool displayIniciar();

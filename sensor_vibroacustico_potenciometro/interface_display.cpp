@@ -22,18 +22,19 @@ static const uint8_t BARRAS_AREA_ALTURA = 24;
 
 // ---------- Prototipos internos ----------
 static void telaDesligado();
-static void telaAguardandoComando(ModoOperacao modo);
+static void telaAguardandoComando(ModoOperacao modo, uint8_t sensibilidade);
 static void telaRecebendoSinais(
   ModoOperacao modo,
   uint8_t nivel,
   bool possivelVitimaDetectada,
-  EstadoGravacao estadoGravacao
+  EstadoGravacao estadoGravacao,
+  uint8_t sensibilidade
 );
 
 static const char* obterNomeModo(ModoOperacao modo);
 static const char* obterNomeGravacao(EstadoGravacao estadoGravacao);
 
-static void desenharCabecalho(const char* titulo, ModoOperacao modo);
+static void desenharCabecalho(const char* titulo, ModoOperacao modo, uint8_t sensibilidade);
 static void desenharLinhaStatus(
   bool possivelVitimaDetectada,
   EstadoGravacao estadoGravacao
@@ -59,7 +60,8 @@ void displayRenderizar(
   ModoOperacao modo,
   uint8_t nivelSinal,
   bool possivelVitimaDetectada,
-  EstadoGravacao estadoGravacao
+  EstadoGravacao estadoGravacao,
+  uint8_t sensibilidade
 ) {
   oled.clearDisplay();
 
@@ -69,7 +71,7 @@ void displayRenderizar(
       break;
 
     case ESTADO_AGUARDANDO_COMANDO:
-      telaAguardandoComando(modo);
+      telaAguardandoComando(modo, sensibilidade);
       break;
 
     case ESTADO_RECEBENDO_SINAIS:
@@ -77,7 +79,8 @@ void displayRenderizar(
         modo,
         nivelSinal,
         possivelVitimaDetectada,
-        estadoGravacao
+        estadoGravacao,
+        sensibilidade
       );
       break;
   }
@@ -89,15 +92,17 @@ void displayRenderizar(
 void displayRenderizar(
   EstadoSistema estado,
   ModoOperacao modo,
-  uint8_t nivelSinal
+  uint8_t nivelSinal,
+  uint8_t sensibilidade
 ) {
-  // Agora sim ela chama a funçao completa que tem o mesmo nome, mas passando 5 argumentos
+  // Agora sim ela chama a funçao completa que tem o mesmo nome, mas passando 6 argumentos
   displayRenderizar(
     estado,
     modo,
     nivelSinal,
     false,
-    GRAVACAO_PARADA
+    GRAVACAO_PARADA,
+    sensibilidade
   );
 }
 
@@ -125,13 +130,19 @@ static const char* obterNomeGravacao(EstadoGravacao estadoGravacao) {
   }
 }
 
-static void desenharCabecalho(const char* titulo, ModoOperacao modo) {
+static void desenharCabecalho(const char* titulo, ModoOperacao modo, uint8_t sensibilidade) {
   oled.setTextSize(1);
   oled.setTextColor(SSD1306_WHITE);
 
   // Titulo do estado
   oled.setCursor(0, 0);
   oled.print(titulo);
+
+  // Sensibilidade no meio
+  oled.setCursor(40, 0);
+  oled.print("Sens:");
+  oled.print(sensibilidade);
+  oled.print("%");
 
   // Modo atual alinhado a direita
   const char* nomeModo = obterNomeModo(modo);
@@ -219,8 +230,8 @@ static void telaDesligado() {
   oled.print("DESLIGADO");
 }
 
-static void telaAguardandoComando(ModoOperacao modo) {
-  desenharCabecalho("LIGADO", modo);
+static void telaAguardandoComando(ModoOperacao modo, uint8_t sensibilidade) {
+  desenharCabecalho("LIGADO", modo, sensibilidade);
 
   oled.setTextSize(1);
   oled.setTextColor(SSD1306_WHITE);
@@ -239,9 +250,10 @@ static void telaRecebendoSinais(
   ModoOperacao modo,
   uint8_t nivel,
   bool possivelVitimaDetectada,
-  EstadoGravacao estadoGravacao
+  EstadoGravacao estadoGravacao,
+  uint8_t sensibilidade
 ) {
-  desenharCabecalho("LENDO", modo);
+  desenharCabecalho("LENDO", modo, sensibilidade);
 
   if (nivel > 100) {
     nivel = 100;
