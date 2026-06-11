@@ -17,8 +17,12 @@ static const uint8_t N_BARRAS = 16;
 static const uint8_t BARRA_LARGURA = 6;
 static const uint8_t BARRA_ESPACAMENTO = 2;
 
-static const uint8_t BARRAS_AREA_Y = 36;
-static const uint8_t BARRAS_AREA_ALTURA = 24;
+static const uint8_t LINHA_ALERTA_PRINCIPAL_Y = 14;
+static const uint8_t LINHA_ALERTA_SECUNDARIO_Y = 24;
+static const uint8_t LINHA_SINAL_Y = 34;
+
+static const uint8_t BARRAS_AREA_Y = 44;
+static const uint8_t BARRAS_AREA_ALTURA = 20;
 
 // ---------- Prototipos internos ----------
 static void telaDesligado();
@@ -26,7 +30,8 @@ static void telaAguardandoComando(ModoOperacao modo, uint8_t sensibilidade);
 static void telaRecebendoSinais(
   ModoOperacao modo,
   uint8_t nivel,
-  bool possivelVitimaDetectada,
+  bool vozDetectada,
+  bool impactoDetectado,
   EstadoGravacao estadoGravacao,
   uint8_t sensibilidade
 );
@@ -35,8 +40,18 @@ static const char* obterNomeModo(ModoOperacao modo);
 static const char* obterNomeGravacao(EstadoGravacao estadoGravacao);
 
 static void desenharCabecalho(const char* titulo, ModoOperacao modo, uint8_t sensibilidade);
-static void desenharLinhaStatus(
-  bool possivelVitimaDetectada,
+static void desenharLinhaAlertaPrincipal(
+  ModoOperacao modo,
+  bool vozDetectada,
+  bool impactoDetectado
+);
+static void desenharLinhaAlertaSecundario(
+  ModoOperacao modo,
+  bool vozDetectada,
+  bool impactoDetectado
+);
+static void desenharLinhaSinal(
+  uint8_t nivel,
   EstadoGravacao estadoGravacao
 );
 static void desenharBarrasIntensidade(uint8_t nivel);
@@ -59,7 +74,8 @@ void displayRenderizar(
   EstadoSistema estado,
   ModoOperacao modo,
   uint8_t nivelSinal,
-  bool possivelVitimaDetectada,
+  bool vozDetectada,
+  bool impactoDetectado,
   EstadoGravacao estadoGravacao,
   uint8_t sensibilidade
 ) {
@@ -78,7 +94,8 @@ void displayRenderizar(
       telaRecebendoSinais(
         modo,
         nivelSinal,
-        possivelVitimaDetectada,
+        vozDetectada,
+        impactoDetectado,
         estadoGravacao,
         sensibilidade
       );
@@ -95,11 +112,12 @@ void displayRenderizar(
   uint8_t nivelSinal,
   uint8_t sensibilidade
 ) {
-  // Agora sim ela chama a funçao completa que tem o mesmo nome, mas passando 6 argumentos
+  // Agora sim ela chama a funçao completa que tem o mesmo nome, mas passando os novos argumentos
   displayRenderizar(
     estado,
     modo,
     nivelSinal,
+    false,
     false,
     GRAVACAO_PARADA,
     sensibilidade
@@ -153,22 +171,74 @@ static void desenharCabecalho(const char* titulo, ModoOperacao modo, uint8_t sen
   oled.drawLine(0, 10, LARGURA - 1, 10, SSD1306_WHITE);
 }
 
-static void desenharLinhaStatus(
-  bool possivelVitimaDetectada,
+static void desenharLinhaAlertaPrincipal(
+  ModoOperacao modo,
+  bool vozDetectada,
+  bool impactoDetectado
+) {
+  oled.setTextSize(1);
+  oled.setTextColor(SSD1306_WHITE);
+
+  oled.setCursor(0, LINHA_ALERTA_PRINCIPAL_Y);
+
+  if (modo == MODO_ACUSTICO) {
+    if (vozDetectada) {
+      oled.print("ALERTA: VITIMA");
+    } else {
+      oled.print("Sem alerta");
+    }
+  } else {
+    if (impactoDetectado) {
+      oled.print("ALERTA: VITIMA");
+    } else {
+      oled.print("Sem alerta");
+    }
+  }
+}
+
+static void desenharLinhaAlertaSecundario(
+  ModoOperacao modo,
+  bool vozDetectada,
+  bool impactoDetectado
+) {
+  oled.setTextSize(1);
+  oled.setTextColor(SSD1306_WHITE);
+
+  oled.setCursor(0, LINHA_ALERTA_SECUNDARIO_Y);
+
+  if (modo == MODO_ACUSTICO) {
+    if (impactoDetectado) {
+      oled.print("[!] VIBRACAO");
+    }
+  } else {
+    if (vozDetectada) {
+      oled.print("[!] VOZ");
+    }
+  }
+}
+
+static void desenharLinhaSinal(
+  uint8_t nivel,
   EstadoGravacao estadoGravacao
 ) {
   oled.setTextSize(1);
   oled.setTextColor(SSD1306_WHITE);
 
-  oled.setCursor(0, 14);
+  oled.setCursor(0, LINHA_SINAL_Y);
+  oled.print("Sinal:");
 
-  if (possivelVitimaDetectada) {
-    oled.print("ALERTA: POSSIVEL VITIMA");
-  } else {
-    oled.print("Sem alerta");
+  oled.setCursor(40, LINHA_SINAL_Y);
+
+  if (nivel < 10) {
+    oled.print("  ");
+  } else if (nivel < 100) {
+    oled.print(" ");
   }
 
-  oled.setCursor(96, 24);
+  oled.print(nivel);
+  oled.print("%");
+
+  oled.setCursor(96, LINHA_SINAL_Y);
   oled.print(obterNomeGravacao(estadoGravacao));
 }
 
@@ -249,7 +319,8 @@ static void telaAguardandoComando(ModoOperacao modo, uint8_t sensibilidade) {
 static void telaRecebendoSinais(
   ModoOperacao modo,
   uint8_t nivel,
-  bool possivelVitimaDetectada,
+  bool vozDetectada,
+  bool impactoDetectado,
   EstadoGravacao estadoGravacao,
   uint8_t sensibilidade
 ) {
@@ -259,24 +330,9 @@ static void telaRecebendoSinais(
     nivel = 100;
   }
 
-  desenharLinhaStatus(possivelVitimaDetectada, estadoGravacao);
-
-  oled.setTextSize(1);
-  oled.setTextColor(SSD1306_WHITE);
-
-  oled.setCursor(0, 24);
-  oled.print("Sinal:");
-
-  oled.setCursor(40, 24);
-
-  if (nivel < 10) {
-    oled.print("  ");
-  } else if (nivel < 100) {
-    oled.print(" ");
-  }
-
-  oled.print(nivel);
-  oled.print("%");
+  desenharLinhaAlertaPrincipal(modo, vozDetectada, impactoDetectado);
+  desenharLinhaAlertaSecundario(modo, vozDetectada, impactoDetectado);
+  desenharLinhaSinal(nivel, estadoGravacao);
 
   desenharBarrasIntensidade(nivel);
 }

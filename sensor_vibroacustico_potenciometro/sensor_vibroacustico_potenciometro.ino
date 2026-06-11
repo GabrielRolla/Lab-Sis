@@ -236,6 +236,9 @@ void setup() {
 
   Wire.begin(OLED_SDA, OLED_SCL);
 
+  // Setup I2S here and keep it running for background detection
+  setupI2S();
+
   if (!displayIniciar()) {
     Serial.println("[ERRO] Falha ao iniciar display SSD1306");
     while (true) {
@@ -261,7 +264,7 @@ void loop() {
   if (agora - ultimoRefreshDisplay >= INTERVALO_DISPLAY_MS) {
     ultimoRefreshDisplay = agora;
     uint8_t sensibilidadePers = (uint8_t)(lerSensibilidadePotenciometro() * 100.0f);
-    displayRenderizar(estadoAtual, modoAtual, nivelSinalAtual, vozDetectada, gravacaoIniciada ? (gravacaoPausada ? GRAVACAO_PAUSADA : GRAVACAO_GRAVANDO) : GRAVACAO_PARADA, sensibilidadePers);
+    displayRenderizar(estadoAtual, modoAtual, nivelSinalAtual, vozDetectada, impactoDetectado, gravacaoIniciada ? (gravacaoPausada ? GRAVACAO_PAUSADA : GRAVACAO_GRAVANDO) : GRAVACAO_PARADA, sensibilidadePers);
   }
 
   delay(10);
@@ -346,13 +349,11 @@ void trocarModo() {
 
 void entrarModoAcustico() {
   finalizarGravacao();
-  desligarI2S();
 
   modoSensorAtual = MODO_ACUSTICO_INMP441;
   modoAtual = MODO_ACUSTICO;
 
   resetarEstadosAudio();
-  setupI2S();
 
   digitalWrite(LED_PIN, LOW);
   Serial.println("[MODO] Acustico / INMP441 ativo");
@@ -360,7 +361,6 @@ void entrarModoAcustico() {
 
 void entrarModoVibracional() {
   finalizarGravacao();
-  desligarI2S();
 
   modoSensorAtual = MODO_VIBRACIONAL_PIEZO;
   modoAtual = MODO_VIBRACIONAL;
@@ -377,10 +377,13 @@ void entrarModoVibracional() {
 // Leitura principal
 // ============================================================
 uint8_t lerNivelDoSinal() {
+  uint8_t nivelVoz = lerNivelVozINMP441();
+  uint8_t nivelPiezo = lerNivelPiezo();
+
   if (modoSensorAtual == MODO_ACUSTICO_INMP441) {
-    return lerNivelVozINMP441();
+    return nivelVoz;
   }
-  return lerNivelPiezo();
+  return nivelPiezo;
 }
 
 // ============================================================

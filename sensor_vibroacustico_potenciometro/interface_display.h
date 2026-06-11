@@ -18,18 +18,15 @@ void displayRenderizar(
   uint8_t sensibilidade
 );
 
-
-
-// NOVA Versão completa (6 argumentos)
+// Versao completa.
 void displayRenderizar(
   EstadoSistema estado,
   ModoOperacao modo,
   uint8_t nivelSinal,
-  bool possivelVitimaDetectada,
+  bool vozDetectada,
+  bool impactoDetectado,
   EstadoGravacao estadoGravacao,
   uint8_t sensibilidade
 );
-
-bool displayIniciar();
 
 #endif
