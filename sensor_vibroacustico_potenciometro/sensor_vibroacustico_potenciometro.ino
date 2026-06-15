@@ -116,9 +116,10 @@ const unsigned long INTERVALO_DISPLAY_MS = 100;
 // ============================================================
 // Configuracoes Piezo
 // ============================================================
-const int PIEZO_THRESHOLD_MIN = 40;   // Mais sensivel
-const int PIEZO_THRESHOLD_MAX = 600;  // Menos sensivel
-const int PIEZO_PARA_100 = 900;
+
+const int PIEZO_THRESHOLD_MIN = 250;   // Mais sensivel (ignora o ruido de fundo leve)
+const int PIEZO_THRESHOLD_MAX = 1500;  // Menos sensivel (exige uma batida forte e real)
+const int PIEZO_PARA_100 = 1000;       // Ajusta o topo do medidor do display OLED
 
 float envelopePiezo = 0.0f;
 const float ALPHA_PIEZO = 0.20f;
@@ -650,17 +651,19 @@ uint8_t lerNivelPiezo() {
   int valor = adc1_get_raw(PIEZO_ADC_CHANNEL);
   int piezoThreshold = calcularPiezoThreshold(lerSensibilidadePotenciometro());
 
-  impactoDetectado = valor > piezoThreshold;
-
+  // 1. Subtrai o threshold cru para ver se sobrou sinal útil
   int valorUtil = valor - piezoThreshold;
   if (valorUtil < 0) {
     valorUtil = 0;
   }
 
+  // 2. Calcula o envelope (suaviza a curva e remove fantasmas rápidos)
   envelopePiezo = (ALPHA_PIEZO * valorUtil) + ((1.0f - ALPHA_PIEZO) * envelopePiezo);
 
-  uint8_t nivel = mapearParaNivel(envelopePiezo, PIEZO_PARA_100);
+  // 3. O gatilho! Só aciona a vítima se a energia filtrada (envelope) for maior que um mínimo seguro
+  impactoDetectado = (envelopePiezo > 20.0f); 
 
+  uint8_t nivel = mapearParaNivel(envelopePiezo, PIEZO_PARA_100);
   digitalWrite(LED_PIN, impactoDetectado ? HIGH : LOW);
 
   imprimirMudancaImpacto();
